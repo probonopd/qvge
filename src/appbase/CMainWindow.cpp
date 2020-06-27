@@ -898,11 +898,11 @@ void CMainWindow::onWindowsMenuAction(QAction *windowAction)
 
 void CMainWindow::createHelpMenu()
 {
-	auto helpMenu = new QMenu(tr("&Help"));
-	menuBar()->addMenu(helpMenu);
+	m_helpMenu = new QMenu(tr("&Help"));
+	menuBar()->addMenu(m_helpMenu);
 
-	helpMenu->addAction(tr("About &Qt..."), qApp, SLOT(aboutQt()));
-	helpMenu->addAction(tr("&About..."), this, SLOT(onAboutApplication()));
+	m_helpMenu->addAction(tr("About &Qt..."), qApp, SLOT(aboutQt()));
+	m_helpMenu->addAction(tr("&About..."), this, SLOT(onAboutApplication()));
 }
 
 
@@ -969,12 +969,12 @@ void CMainWindow::doReadSettings(QSettings& settings)
     // window state
     if (settings.value("maximized", true).toBool())
     {
-#ifdef Q_OS_WIN32
-		showMaximized();
-#else
+//#ifdef Q_OS_WIN32
+//		showMaximized();
+//#else
 		showNormal();
         QTimer::singleShot(0, this, SLOT(showMaximized()));
-#endif
+//#endif
     }
 	else
 		showNormal();

@@ -2,7 +2,7 @@
 This file is a part of
 QVGE - Qt Visual Graph Editor
 
-(c) 2016-2019 Ars L. Masiuk (ars.masiuk@gmail.com)
+(c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
 
 It can be used freely, maintaining the information above.
 */
@@ -18,9 +18,6 @@ It can be used freely, maintaining the information above.
 
 #define _USE_MATH_DEFINES
 #include <math.h>
-
-
-const int ARROW_SIZE = 6;
 
 
 CEdge::CEdge(QGraphicsItem *parent): Shape(parent)
@@ -132,12 +129,6 @@ void CEdge::updateArrowFlags(const QString& direction)
 
 // reimp
 
-QPainterPath CEdge::shape() const
-{
-	return m_selectionShapePath;
-}
-
-
 QRectF CEdge::boundingRect() const
 {
     return Shape::boundingRect().adjusted(-10,-10,10,10);
@@ -147,10 +138,7 @@ QRectF CEdge::boundingRect() const
 void CEdge::setupPainter(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget* /*widget*/)
 {
 	// weight
-	bool ok = false;
-	double weight = qMax(0.1, getAttribute(QByteArrayLiteral("weight")).toDouble(&ok));
-	if (!ok) weight = 1;
-	if (weight > 10) weight = 10;	// safety
+	double weight = getWeight();
 
 	// line style
 	Qt::PenStyle penStyle = (Qt::PenStyle) CUtils::textToPenStyle(getAttribute(QByteArrayLiteral("style")).toString(), Qt::SolidLine);
@@ -173,6 +161,19 @@ void CEdge::setupPainter(QPainter *painter, const QStyleOptionGraphicsItem *opti
 		painter->setOpacity(1.0);
 		painter->setPen(p);
 	}
+}
+
+
+double CEdge::getWeight() const
+{
+	bool ok = false;
+	double weight = qMax(0.1, getAttribute(QByteArrayLiteral("weight")).toDouble(&ok));
+	if (!ok) 
+		return 1;
+	else
+		if (weight > 10) 
+			weight = 10;	// safety
+	return weight;
 }
 
 
@@ -276,10 +277,13 @@ bool CEdge::restoreFrom(QDataStream &out, quint64 version64)
 
 bool CEdge::linkAfterRestore(const CItemLinkMap &idToItem)
 {
-    CNode *node1 = dynamic_cast<CNode*>(idToItem.value((quintptr)m_tempFirstNodeId));
-    CNode *node2 = dynamic_cast<CNode*>(idToItem.value((quintptr)m_tempLastNodeId));
+    //qDebug() << m_tempFirstNodeId << m_tempLastNodeId;
+    auto p1 = idToItem[m_tempFirstNodeId];
+    auto p2 = idToItem[m_tempLastNodeId];
+    CNode *node1 = dynamic_cast<CNode*>(p1);
+    CNode *node2 = dynamic_cast<CNode*>(p2);
 
-	m_firstNode = m_lastNode = NULL;
+    m_firstNode = m_lastNode = nullptr;
 
 	setFirstNode(node1, m_firstPortId);
 	setLastNode(node2, m_lastPortId);

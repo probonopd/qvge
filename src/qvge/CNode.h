@@ -2,7 +2,7 @@
 This file is a part of
 QVGE - Qt Visual Graph Editor
 
-(c) 2016-2019 Ars L. Masiuk (ars.masiuk@gmail.com)
+(c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
 
 It can be used freely, maintaining the information above.
 */
@@ -51,9 +51,7 @@ public:
 	virtual void copyDataFrom(CItem* from);
 
 	virtual QSizeF getSize() const		{ return rect().size(); }
-	virtual void resize(float size)		{ setRect(-size / 2, -size / 2, size, size); }
-	virtual void resize(float w, float h) { setRect(-w / 2, -h / 2, w, h); }
-	virtual void resize(const QSizeF& size) { resize(size.width(), size.height()); }
+	virtual void setSize(float w, float h);
 
 	// attributes
 	virtual bool hasLocalAttribute(const QByteArray& attrId) const;
@@ -101,9 +99,6 @@ public:
 	// returns true if a connection from this node to itself is allowed.
 	virtual bool allowCircledConnection() const { return true; }
 
-	// calculates distance to the line's end point (used to draw connections to this item).
-	virtual double getDistanceToLineEnd(const QLineF& line, const QByteArray& portId) const;		// -- unused ?
-
 	// calculates point on the node's outline intersecting with line.
 	virtual QPointF getIntersectionPoint(const QLineF& line, const QByteArray& portId) const;
 
@@ -138,9 +133,13 @@ private:
 	void recalculateShape();
 	void updateConnections();
 
+	void resize(float size)			{ setRect(-size / 2, -size / 2, size, size); }
+	void resize(float w, float h)	{ setRect(-w / 2, -h / 2, w, h); }
+	void resize(const QSizeF& size) { resize(size.width(), size.height()); }
+
 protected:
 	QSet<CEdge*> m_connections;
-	int m_nodeFlags;
+	int m_nodeFlags = 0;
 
 	QMap<QByteArray, CNodePort*> m_ports;
 

@@ -30,7 +30,7 @@ int CPlatformServices::GetPlatformBits()
 }
 
 
-#if defined (Q_OS_WIN32) || defined(Q_OS_CYGWIN)
+#if defined (Q_OS_WIN32) && !defined(Q_OS_CYGWIN)
 
 #include <Windows.h>
 #include <Psapi.h>
@@ -108,7 +108,7 @@ quint64 CPlatformServices::GetTotalRAMBytes()
 
 #endif // windows
 
-#if (defined(Q_OS_LINUX) || defined (Q_OS_UNIX)) && not defined (Q_OS_CYGWIN)
+#if (defined(Q_OS_LINUX) || defined (Q_OS_UNIX) || defined (Q_OS_CYGWIN)) && (!defined (Q_OS_HAIKU))
 #include <QX11Info>
 
 #include <X11/Xlib.h>
@@ -210,3 +210,31 @@ quint64 CPlatformServices::GetTotalRAMBytes()
 
 
 #endif // linux
+
+
+// haiku
+#if defined (Q_OS_HAIKU)
+
+quint64 CPlatformServices::GetTotalRAMBytes()
+{
+    return 0;
+}
+
+CPlatformServices::PIDs CPlatformServices::GetRunningPIDs()
+{
+    PIDs result;
+
+    return result;
+}
+
+bool CPlatformServices::CloseWindow(uint id)
+{
+    return true;
+}
+
+bool CPlatformServices::SetActiveWindow(uint id)
+{
+    return true;
+}
+
+#endif // haiku

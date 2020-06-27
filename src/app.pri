@@ -22,10 +22,18 @@ win32{
     LIBS += -lopengl32 -lglu32 -lshell32 -luser32 -lpsapi
 }
 
-cygwin*{
-    LIBS += -lopengl32 -lglu32 -lshell32 -luser32 -lpsapi
+unix{
+    !haiku{
+        LIBS += -lQt5X11Extras -lX11
+    }
 }
 
+
+# install
 unix{
-    LIBS += -lQt5X11Extras -lX11
+    isEmpty(PREFIX) {
+        PREFIX = /usr/local/bin
+    }
+
+    target.path = $$PREFIX/
 }

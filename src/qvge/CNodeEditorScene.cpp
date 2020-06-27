@@ -10,6 +10,7 @@
 
 #include <qvgeio/CGraphBase.h>
 
+#include <QGraphicsView>
 #include <QGraphicsSceneMouseEvent>
 #include <QColorDialog> 
 #include <QKeyEvent>
@@ -47,29 +48,59 @@ bool CNodeEditorScene::fromGraph(const Graph& g)
 	reset();
 
 	
+	// Graph attrs
 	for (const auto& attr : g.graphAttrs)
 	{
-		createClassAttribute("", attr.id, attr.name, attr.defaultValue);
+		if (attr.id == attr_labels_visIds)
+		{
+			auto graphVis = CUtils::visFromString(attr.defaultValue.toString());
+			setVisibleClassAttributes("", graphVis);
+			continue;
+		}
+
+		createClassAttribute("", attr.id, attr.name, attr.defaultValue, ATTR_NONE);
 	}
 
 	for (auto it = g.attrs.constBegin(); it != g.attrs.constEnd(); ++it)
 	{
+		if (it.key() == attr_labels_visIds)
+			continue;
+
 		setClassAttribute("", it.key(), it.value());
 	}
 
 
+	// Class attrs
 	for (const auto& attr : g.nodeAttrs)
 	{
-		createClassAttribute("node", attr.id, attr.name, attr.defaultValue);
+		if (attr.id == attr_labels_visIds)
+		{
+			auto nodeVis = CUtils::visFromString(attr.defaultValue.toString());
+			setVisibleClassAttributes("node", nodeVis);
+			continue;
+		}
+
+		if (attr.id == attr_size)
+			continue;	// ignore for now
+
+		createClassAttribute("node", attr.id, attr.name, attr.defaultValue, ATTR_NONE);
 	}
 
 
 	for (const auto& attr : g.edgeAttrs)
 	{
-		createClassAttribute("edge", attr.id, attr.name, attr.defaultValue);
+		if (attr.id == attr_labels_visIds)
+		{
+			auto edgeVis = CUtils::visFromString(attr.defaultValue.toString());
+			setVisibleClassAttributes("edge", edgeVis);
+			continue;
+		}
+
+		createClassAttribute("edge", attr.id, attr.name, attr.defaultValue, ATTR_NONE);
 	}
 
 
+	// Nodes
 	QMap<QByteArray, CNode*> nodesMap;
 
 	for (const Node& n : g.nodes)
@@ -87,11 +118,14 @@ bool CNodeEditorScene::fromGraph(const Graph& g)
 
 		for (auto it = n.ports.constBegin(); it != n.ports.constEnd(); ++it)
 		{
-			/*CNodePort* port =*/ node->addPort(it.key().toLocal8Bit());
+			CNodePort* port = node->addPort(it.key().toLatin1(), it.value().anchor, it.value().x, it.value().y);
+			Q_ASSERT(port != nullptr);
+			port->setColor(it.value().color);
 		}
 	}
 
 
+	// Edges
 	for (const Edge& e : g.edges)
 	{
 		CEdge* edge = createNewConnection();
@@ -120,31 +154,62 @@ bool CNodeEditorScene::toGraph(Graph& g)
 {
 	g.clear();
 
+
+	// class attributes
 	auto graphAttrs = getClassAttributes("", false);
 	for (auto it = graphAttrs.constBegin(); it != graphAttrs.constEnd(); ++it)
 	{
-		AttrInfo attr = *it;
-		if (attr.name.isEmpty())
-			attr.name = QString(attr.id);
+		const auto& attr = *it;
+		if (attr.flags & ATTR_VIRTUAL)
+			continue;
 		g.graphAttrs[it.key()] = attr;
 	}
 
 	auto nodeAttrs = getClassAttributes("node", false);
 	for (auto it = nodeAttrs.constBegin(); it != nodeAttrs.constEnd(); ++it)
 	{
-		AttrInfo attr = *it;
-		if (attr.name.isEmpty())
-			attr.name = QString(attr.id);
+		const auto& attr = *it;
+		if (attr.flags & ATTR_VIRTUAL)
+			continue;
 		g.nodeAttrs[it.key()] = attr;
 	}
 
 	auto edgeAttrs = getClassAttributes("edge", false);
 	for (auto it = edgeAttrs.constBegin(); it != edgeAttrs.constEnd(); ++it)
 	{
-		AttrInfo attr = *it;
-		if (attr.name.isEmpty())
-			attr.name = QString(attr.id);
+		const auto& attr = *it;
+		if (attr.flags & ATTR_VIRTUAL)
+			continue;
 		g.edgeAttrs[it.key()] = attr;
+	}
+
+	// temp solution
+	g.nodeAttrs.remove("size");
+	g.nodeAttrs.remove("pos");
+
+
+	// visibility
+	static AttrInfo _vis_({ attr_labels_visIds , "Visible Labels", QVariant::StringList});
+
+	auto nodeVis = getVisibleClassAttributes("node", false);
+	if (nodeVis.size())
+	{
+		_vis_.defaultValue = CUtils::byteArraySetToStringList(nodeVis);
+		g.nodeAttrs[attr_labels_visIds] = _vis_;
+	}
+
+	auto edgeVis = getVisibleClassAttributes("edge", false);
+	if (edgeVis.size())
+	{
+		_vis_.defaultValue = CUtils::byteArraySetToStringList(edgeVis);
+		g.edgeAttrs[attr_labels_visIds] = _vis_;
+	}
+
+	auto graphVis = getVisibleClassAttributes("", false);
+	if (graphVis.size())
+	{
+		_vis_.defaultValue = CUtils::byteArraySetToStringList(graphVis);
+		g.graphAttrs[attr_labels_visIds] = _vis_;
 	}
 
 
@@ -153,8 +218,8 @@ bool CNodeEditorScene::toGraph(Graph& g)
 	for (const auto &node : nodes)
 	{
 		Node n;
-		n.id = node->getId().toLocal8Bit();
-		
+		n.id = node->getId().toLatin1();
+
 		QByteArrayList ports = node->getPortIds();
 		for (const auto &portId : ports)
 		{
@@ -163,13 +228,22 @@ bool CNodeEditorScene::toGraph(Graph& g)
 
 			NodePort p;
 			p.name = portId;
-
-			// TO DO: other attrs
+			p.anchor = port->getAlign();
+			p.x = port->getX();
+			p.y = port->getY();
+			p.color = port->getColor();
 
 			n.ports[portId] = p;
 		}
 
 		n.attrs = node->getLocalAttributes();
+		// temp solution
+		n.attrs["x"] = node->pos().x();
+		n.attrs["y"] = node->pos().y();
+		n.attrs.remove("pos");
+		n.attrs["width"] = node->getSize().width();
+		n.attrs["height"] = node->getSize().height();
+		n.attrs.remove("size");
 
 		g.nodes.append(n);
 	}
@@ -180,9 +254,9 @@ bool CNodeEditorScene::toGraph(Graph& g)
 	for (const auto &edge : edges)
 	{
 		Edge e;
-		e.id = edge->getId().toLocal8Bit();
-		e.startNodeId = edge->firstNode()->getId().toLocal8Bit();
-		e.endNodeId = edge->lastNode()->getId().toLocal8Bit();
+		e.id = edge->getId().toLatin1();
+		e.startNodeId = edge->firstNode()->getId().toLatin1();
+		e.endNodeId = edge->lastNode()->getId().toLatin1();
 		e.startPortId = edge->firstPortId();
 		e.endPortId = edge->lastPortId();
 
@@ -210,45 +284,42 @@ void CNodeEditorScene::initialize()
 	if (edgeStyles->ids.isEmpty()) {
 		edgeStyles->names << tr("None") << tr("Solid") << tr("Dots") << tr("Dashes") << tr("Dash-Dot") << tr("Dash-Dot-Dot");
 		edgeStyles->ids << "none" << "solid" << "dotted" << "dashed" << "dashdot" << "dashdotdot";
-		//edgeStyles->icons << QIcon(":/Icons/Edge-Directed") << QIcon(":/Icons/Edge-Mutual") << QIcon(":/Icons/Edge-Undirected");
 	}
 
 
 	// default node attr
-    CAttribute nodeAttr("color", "Color", QColor(Qt::magenta));
+    CAttribute nodeAttr("color", "Color", QColor(Qt::magenta), ATTR_FIXED);
 	setClassAttribute("node", nodeAttr);
 
-    CAttribute shapeAttr("shape", "Shape", "disc");
+    CAttribute shapeAttr("shape", "Shape", "disc", ATTR_FIXED);
 	setClassAttribute("node", shapeAttr);
 
-	createClassAttribute("node", "size", "Size", QSizeF(11.0, 11.0));
+	createClassAttribute("node", "size", "Size", QSizeF(11.0, 11.0), ATTR_MAPPED | ATTR_FIXED);
+	//createClassAttribute("node", "width", "Width", 11.0f, ATTR_MAPPED);
+	//createClassAttribute("node", "height", "Height", 11.0f, ATTR_MAPPED);
 
-	createClassAttribute("node", "stroke.style", "Stroke Style", "solid");
-	setClassAttributeConstrains("node", "stroke.style", edgeStyles);
-	createClassAttribute("node", "stroke.size", "Stroke Size", 1.0);
-	createClassAttribute("node", "stroke.color", "Stroke Color", QColor(Qt::black));
+	//createClassAttribute("node", "pos", "Position", QPointF(), ATTR_NODEFAULT | ATTR_MAPPED);
+	createClassAttribute("node", "x", "X-Coordinate", 0.0f, ATTR_NODEFAULT | ATTR_MAPPED | ATTR_FIXED);
+	createClassAttribute("node", "y", "Y-Coordinate", 0.0f, ATTR_NODEFAULT | ATTR_MAPPED | ATTR_FIXED);
 
-    CAttribute posAttr("pos", "Position", QPointF());
-	posAttr.noDefault = true;
-	setClassAttribute("node", posAttr);
+	createClassAttribute("node", "stroke.style", "Stroke Style", "solid", ATTR_FIXED, edgeStyles);
+	createClassAttribute("node", "stroke.size", "Stroke Size", 1.0, ATTR_FIXED);
+	createClassAttribute("node", "stroke.color", "Stroke Color", QColor(Qt::black), ATTR_FIXED);
 
-	CAttribute degreeAttr("degree", "Degree", 0);
-	degreeAttr.noDefault = true;
-	degreeAttr.isVirtual = true;
-	setClassAttribute("node", degreeAttr);
+	createClassAttribute("node", "degree", "Degree", 0, ATTR_NODEFAULT | ATTR_VIRTUAL | ATTR_FIXED);
 
 
 	// default edge attr
-    CAttribute edgeAttr("color", "Color", QColor(Qt::gray));
+    CAttribute edgeAttr("color", "Color", QColor(Qt::gray), ATTR_FIXED);
 	setClassAttribute("edge", edgeAttr);
 
-	CAttribute directionAttr("direction", "Direction", "directed");
+	CAttribute directionAttr("direction", "Direction", "directed", ATTR_FIXED);
 	setClassAttribute("edge", directionAttr);
 
-	CAttribute weightAttr("weight", "Weight", 1.0);
+	CAttribute weightAttr("weight", "Weight", 1.0, ATTR_FIXED);
 	setClassAttribute("edge", weightAttr);
 
-    CAttribute styleAttr("style", "Style", "solid");
+    CAttribute styleAttr("style", "Style", "solid", ATTR_FIXED);
     setClassAttribute("edge", styleAttr);
 
 
@@ -281,6 +352,24 @@ void CNodeEditorScene::setEditMode(EditMode mode)
 	{
 		m_editMode = mode;
 
+		switch (m_editMode)
+		{
+		case EM_Transform:
+			getCurrentView()->setDragMode(QGraphicsView::RubberBandDrag);
+			startTransform(true);
+			break;
+
+		case EM_AddNodes:
+			getCurrentView()->setDragMode(QGraphicsView::NoDrag);
+			startTransform(false);
+			break;
+
+		default:
+			getCurrentView()->setDragMode(QGraphicsView::RubberBandDrag);
+			startTransform(false);
+			break;
+		}
+
 		Q_EMIT editModeChanged(m_editMode);
 	}
 }
@@ -288,6 +377,9 @@ void CNodeEditorScene::setEditMode(EditMode mode)
 
 bool CNodeEditorScene::startNewConnection(const QPointF& pos)
 {
+	if (m_editMode == EM_Transform)
+		return false;
+
 	if (QGraphicsItem* item = getItemAt(pos))
 	{
 		if (!item->isEnabled())
@@ -329,10 +421,6 @@ bool CNodeEditorScene::startNewConnection(const QPointF& pos)
 		m_startNodePort = NULL;
 	}
 
-	//m_endNode = dynamic_cast<CNode*>(m_startNode->clone());
-	//addItem(m_endNode);
-	//m_endNode->setPos(getSnapped(pos));
-
 	m_endNode = createNewNode(getSnapped(pos));
 
 	Super::startDrag(m_endNode);
@@ -346,7 +434,7 @@ bool CNodeEditorScene::startNewConnection(const QPointF& pos)
 
     // auto select created items
     m_startNode->setSelected(false);
-    //m_connection->setSelected(true);
+    m_connection->setSelected(true);
     m_endNode->setSelected(true);
 
 	return true;
@@ -455,7 +543,13 @@ void CNodeEditorScene::setEdgesFactory(CEdge* edgeFactory)
 
 void CNodeEditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *mouseEvent)
 {
-	//if (m_state == IS_None)
+	if (m_editItem)
+	{
+		// call super
+		Super::mouseReleaseEvent(mouseEvent);
+		return;
+	}
+
 	if (m_startDragItem == NULL)
 	{
 		// call super
@@ -472,6 +566,7 @@ void CNodeEditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *mouseEvent)
 		if (mouseEvent->button() == Qt::RightButton)
 		{
 			m_state = IS_Cancelling;
+			m_skipMenuEvent = true;
 		}
 
 		// cancel on same position
@@ -499,11 +594,50 @@ void CNodeEditorScene::mouseReleaseEvent(QGraphicsSceneMouseEvent *mouseEvent)
 
 	// necessary to handle scene events properly
 	QGraphicsScene::mouseReleaseEvent(mouseEvent);
+
+	updateCursorState();
 }
 
 
 void CNodeEditorScene::keyPressEvent(QKeyEvent *keyEvent)
 {
+	bool isCtrl = (keyEvent->modifiers() == Qt::ControlModifier);
+	bool isAlt = (keyEvent->modifiers() == Qt::AltModifier);
+	bool isShift = (keyEvent->modifiers() == Qt::ShiftModifier);
+
+
+	// Ctrl+Up/Down; alter size by 10%
+	if (keyEvent->key() == Qt::Key_Up && isCtrl)
+	{
+		auto &nodes = getSelectedNodes();
+		for (auto &node : nodes)
+		{
+			node->setAttribute(attr_size, node->getSize() * 1.1);
+		}
+
+		addUndoState();
+
+		keyEvent->accept();
+		return;
+	}
+
+
+	if (keyEvent->key() == Qt::Key_Down && isCtrl)
+	{
+		auto &nodes = getSelectedNodes();
+		for (auto &node : nodes)
+		{
+			node->setAttribute(attr_size, node->getSize() / 1.1);
+		}
+
+		addUndoState();
+
+		keyEvent->accept();
+		return;
+	}
+
+
+	// cancel label edit
 	if (keyEvent->key() == Qt::Key_Escape)
 	{
 		cancel();
@@ -538,7 +672,7 @@ bool CNodeEditorScene::onClickDrag(QGraphicsSceneMouseEvent *mouseEvent, const Q
 	{
 		if (startNewConnection(clickPos))
 		{
-			setEditMode(EM_Default);
+			//setEditMode(EM_Default);
 			return true;
 		}
 	}
@@ -572,7 +706,9 @@ void CNodeEditorScene::onDropped(QGraphicsSceneMouseEvent* mouseEvent, QGraphics
 	CEdge *dragEdge = dynamic_cast<CEdge*>(dragItem);
 
 	// perform snap
-	if (gridSnapEnabled())
+	auto keys = mouseEvent->modifiers();
+	bool isSnap = (keys & Qt::AltModifier) ? !gridSnapEnabled() : gridSnapEnabled();
+	if (isSnap)
 	{
 		// control point:
 		if (auto cp = dynamic_cast<CControlPoint*>(dragItem))
@@ -640,7 +776,7 @@ void CNodeEditorScene::onLeftClick(QGraphicsSceneMouseEvent* mouseEvent, QGraphi
 		if (!clickedItem)
 		{
 			onLeftDoubleClick(mouseEvent, clickedItem);
-			setEditMode(EM_Default);
+			//setEditMode(EM_Default);
 			return;
 		}
 	}
@@ -733,7 +869,7 @@ void CNodeEditorScene::moveSelectedItemsBy(const QPointF& d)
 }
 
 
-QList<QGraphicsItem*> CNodeEditorScene::copyPasteItems() const
+QList<QGraphicsItem*> CNodeEditorScene::getCopyPasteItems() const
 {
 	// only selected edges & their nodes
 	QList<QGraphicsItem*> result;
@@ -765,7 +901,7 @@ QList<QGraphicsItem*> CNodeEditorScene::copyPasteItems() const
 }
 
 
-QList<QGraphicsItem*> CNodeEditorScene::transformableItems() const
+QList<QGraphicsItem*> CNodeEditorScene::getTransformableItems() const
 {
 	QList<QGraphicsItem*> result;
 	
@@ -779,19 +915,34 @@ QList<QGraphicsItem*> CNodeEditorScene::transformableItems() const
 
 bool CNodeEditorScene::doUpdateCursorState(Qt::KeyboardModifiers keys, Qt::MouseButtons buttons, QGraphicsItem *hoverItem)
 {
-	// handled by super?
-	if (Super::doUpdateCursorState(keys, buttons, hoverItem))
-		return true;
-
+	// port?
 	if (CNodePort *portItem = dynamic_cast<CNodePort*>(hoverItem))
 	{
 		if (portItem->isEnabled())
 		{
-			setSceneCursor(Qt::UpArrowCursor);
+			setSceneCursor(Qt::CrossCursor);
 			setInfoStatus(SIS_Hover_Port);
 			return true;
 		}
 	}
+
+	// hover item?
+	if (m_editMode == EM_AddNodes)
+	{
+		if (hoverItem)
+		{
+			if (hoverItem->isEnabled())
+			{
+				setSceneCursor(Qt::CrossCursor);
+				setInfoStatus(SIS_Hover);
+				return true;
+			}
+		}
+	}
+
+	// handled by super?
+	if (Super::doUpdateCursorState(keys, buttons, hoverItem))
+		return true;
 
 	// still not handled
 	return false;

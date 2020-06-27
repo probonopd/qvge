@@ -2,7 +2,7 @@
 This file is a part of
 QVGE - Qt Visual Graph Editor
 
-(c) 2016-2019 Ars L. Masiuk (ars.masiuk@gmail.com)
+(c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
 
 It can be used freely, maintaining the information above.
 */
@@ -23,6 +23,7 @@ class IUndoManager;
 class ISceneItemFactory;
 class IInteractive;
 class ISceneMenuController;
+class ISceneEditController;
 
 class CItem;
 class CEditorSceneActions;
@@ -50,6 +51,8 @@ class CEditorScene : public QGraphicsScene
 
 public:
 	typedef QGraphicsScene Super;
+
+	friend class CEditorScene_p;
 
     CEditorScene(QObject *parent = NULL);
 	virtual ~CEditorScene();
@@ -148,12 +151,18 @@ public:
 	void setClassAttribute(const QByteArray& classId, const QByteArray& attrId, const QVariant& defaultValue);
 
 	// convenience method to create a class attribute by single call
-	bool createClassAttribute(const QByteArray& classId, 
-		const QByteArray& attrId, const QString& attrName, const QVariant& defaultValue, 
+	CAttribute& createClassAttribute(
+		const QByteArray& classId, 
+		const QByteArray& attrId, 
+		const QString& attrName, 
+		const QVariant& defaultValue = QVariant(), 
+		int attrFlags = ATTR_FIXED,
 		CAttributeConstrains* constrains = NULL,
 		bool vis = false);
 
 	QSet<QByteArray> getVisibleClassAttributes(const QByteArray& classId, bool inherited) const;
+	void setVisibleClassAttributes(const QByteArray& classId, const QSet<QByteArray>& vis);
+
 	void setClassAttributeVisible(const QByteArray& classId, const QByteArray& attrId, bool vis = true);
 	bool isClassAttributeVisible(const QByteArray& classId, const QByteArray& attrId) const;
 
@@ -192,9 +201,27 @@ public:
 	virtual void moveSelectedItemsBy(const QPointF& d);
 
 	virtual QList<CItem*> cloneSelectedItems();
+
+	virtual int getBoundingMargin() const { return 0; }
+
+	// to reimplement
+	virtual QList<QGraphicsItem*> getCopyPasteItems() const;
+	virtual QList<QGraphicsItem*> getTransformableItems() const;
  
 	// operations
 	void startDrag(QGraphicsItem* dragItem);
+	void startTransform(bool on);
+
+	// actions
+	QObject* getActions();
+	CEditorSceneActions* actions();
+
+	// edit extenders
+	void setSceneEditController(ISceneEditController *controller);
+
+	ISceneEditController* getSceneEditController() const {
+		return m_editController;
+	}
 
 	// context menu
 	void setContextMenuController(ISceneMenuController *controller) {
@@ -226,10 +253,6 @@ public:
 	// callbacks
 	virtual void onItemDestroyed(CItem *citem);
 
-	// actions
-	QObject* getActions();
-	CEditorSceneActions* actions();
-
 public Q_SLOTS:
     void enableGrid(bool on = true);
     void enableGridSnap(bool on = true);
@@ -252,6 +275,8 @@ public Q_SLOTS:
 
 	void crop();
 
+	void setSceneCursor(const QCursor& c);
+
 Q_SIGNALS:
 	void undoAvailable(bool);
 	void redoAvailable(bool);
@@ -264,12 +289,8 @@ Q_SIGNALS:
 protected:
 	void setInfoStatus(int status);
 
-	void setSceneCursor(const QCursor& c);
 	void updateCursorState();
 	virtual bool doUpdateCursorState(Qt::KeyboardModifiers keys, Qt::MouseButtons buttons, QGraphicsItem *hoverItem);
-
-	void calculateTransformRect();
-	void drawTransformRect(QPainter *painter);
 
 	virtual QObject* createActions();
 
@@ -287,10 +308,6 @@ protected:
 	virtual void keyReleaseEvent(QKeyEvent *keyEvent);
 	virtual void focusInEvent(QFocusEvent *focusEvent);
 	virtual void contextMenuEvent(QGraphicsSceneContextMenuEvent *contextMenuEvent);
-
-	// to reimplement
-	virtual QList<QGraphicsItem*> copyPasteItems() const;
-	virtual QList<QGraphicsItem*> transformableItems() const;
 
 	// call from reimp
 	void moveDrag(QGraphicsSceneMouseEvent *mouseEvent, QGraphicsItem* dragItem, bool performDrag);
@@ -315,6 +332,7 @@ protected:
 protected Q_SLOTS:
 	virtual void onSelectionChanged();
 	void onFocusItemChanged(QGraphicsItem *newFocusItem, QGraphicsItem *oldFocusItem, Qt::FocusReason reason);
+	void onItemEditingFinished(CItem *item, bool cancelled);
 
 	void onActionDelete();
 	void onActionSelectAll();
@@ -327,12 +345,14 @@ private:
 protected:
 	QPointF m_leftClickPos;
 	QPointF m_mousePos;
-	bool m_doubleClick;
-	bool m_dragInProgress;
-	QGraphicsItem *m_startDragItem;
+	bool m_doubleClick = false;
+	bool m_dragInProgress = false;
+	QGraphicsItem *m_startDragItem = nullptr;
 	QPointF m_lastDragPos;
-	QGraphicsItem *m_draggedItem;
+	QGraphicsItem *m_draggedItem = nullptr;
 	QSet<IInteractive*> m_acceptedHovers, m_rejectedHovers;
+	bool m_skipMenuEvent = false;
+	CItem *m_editItem = nullptr;
 
 private:
 	int m_infoStatus;
@@ -341,11 +361,14 @@ private:
 	ISceneItemFactory *m_itemFactoryFilter = nullptr;
 
 	IUndoManager *m_undoManager = nullptr;
+	bool m_inProgress = false;
 	
 	QGraphicsItem *m_menuTriggerItem = nullptr;
 	ISceneMenuController *m_menuController = nullptr;
 	
 	QObject *m_actions = nullptr;
+
+	ISceneEditController *m_editController = nullptr;
 
 	QMap<QByteArray, QByteArray> m_classToSuperIds;
 	ClassAttributesMap m_classAttributes;
@@ -357,12 +380,9 @@ private:
     bool m_gridSnap;
     QPen m_gridPen;
 
-	bool m_needUpdateItems;
+	bool m_needUpdateItems = true;
 
 	QPointF m_pastePos;
-
-	// selector
-	QRectF m_transformRect;
 
 	// labels
 	QPainterPath m_usedLabelsRegion;
@@ -371,7 +391,7 @@ private:
 	bool m_isFontAntialiased = true;
 
 	// pimpl
-	struct CEditorScene_p* m_pimpl = nullptr;
+	class CEditorScene_p* m_pimpl = nullptr;
 };
 
 

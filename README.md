@@ -1,6 +1,7 @@
 ## Qt Visual Graph Editor 
 [![Github All Releases](https://img.shields.io/github/downloads/ArsMasiuk/qvge/total.svg?style=for-the-badge)](https://github.com/ArsMasiuk/qvge/releases/latest)
 ![GitHub release](https://img.shields.io/github/release/ArsMasiuk/qvge.svg?style=for-the-badge)
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Z35EHHJ3729GG&source=url)
 
 
 **qvge** is a multiplatform graph editor written in C++/Qt. Its main goal is to make possible visually edit two-dimensional graphs
@@ -71,19 +72,24 @@ jom
 
 ### Supported compilers
 
-**qvge** has been built with:
-- Microsoft Visual Studio 2015 (Community Edition)
-- MinGW 5.3
-- GCC 4.8 & GCC 5.3 (Linux)
+Recent version of **qvge** has been built with:
+- Microsoft Visual Studio 2017 (Community Edition)
+- MinGW 7.3
+- GCC 7.5 (Linux)
 - GCC 6.4.0 (Cygwin) 
 - Clang C++ (FreeBSD)
 
-Hopefully it will be compiled with others compilers, too. If not please do not hesitate to provide description of the issue.
+Hopefully it can also be compiled with others compilers. If not please do not hesitate to provide description of the issue.
 
-### Supported OSes
+### Supported OS
 
-**qvge** has been tested on Microsoft Windows 10 and several Linux (Mint, Mageia etc). Theoretically it should run on (almost) any OS which have Qt 5.x installed.
-It can be compiled & started under Cygwin as well.
+**qvge** has been tested on Microsoft Windows 10 and several Linux OS (Mint, Mageia etc). Theoretically it should run on (almost) any OS which have Qt 5.x installed.
+
+**qvge** can be compiled & run under Cygwin.
+
+### Supported Qt
+
+**qvge** has been tested with Qt 5.9-5.14. But it should work with any newer 5.x version too. 
 
 ### Credits
 
@@ -94,7 +100,7 @@ It can be compiled & started under Cygwin as well.
 - [QSint widgets library](https://sourceforge.net/projects/qsint) (c) Sintegrial Technologies
 - [OGDF - Open Graph Drawing Framework](http://www.ogdf.net)
 - [Inkscape](https://inkscape.org) (SVG icons)
-- [read_proc library](https://daknuett.eu/personal) (c) Daniel Knuettel
+- (deprecated) [read_proc library](https://daknuett.eu/personal) (c) Daniel Knuettel
 
 Special thanks to:
 
@@ -105,3 +111,11 @@ Special thanks to:
 **qvge** at [![Download qvge](https://sourceforge.net/sflogo.php?type=13&group_id=2914953)](https://sourceforge.net/p/qvge/)
 
 **qvge** at [Softpedia.com](https://www.softpedia.com/get/Multimedia/Graphic/Graphic-Others/Qt-Visual-Graph-Editor.shtml)
+
+### Support
+
+Since **qvge** is a free software, it is developed in the free time on my own costs only. If you like the software and wish to support its further development, you could make a small donation using the button below:
+
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=Z35EHHJ3729GG&source=url)
+
+Thank you!

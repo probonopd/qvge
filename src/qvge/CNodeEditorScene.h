@@ -2,7 +2,7 @@
 This file is a part of
 QVGE - Qt Visual Graph Editor
 
-(c) 2016-2019 Ars L. Masiuk (ars.masiuk@gmail.com)
+(c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
 
 It can be used freely, maintaining the information above.
 */
@@ -21,7 +21,8 @@ enum EditMode
 {
 	EM_Default,
 	EM_AddNodes,
-	EM_AddEdges
+	EM_AddEdges,
+	EM_Transform
 };
 
 
@@ -64,6 +65,8 @@ public:
     // selections
     virtual void moveSelectedItemsBy(const QPointF& d);
 
+	virtual int getBoundingMargin() const { return 5; }
+
     const QList<CNode*>& getSelectedNodes() const;
     const QList<CEdge*>& getSelectedEdges() const;
 	const QList<CItem*>& getSelectedNodesEdges() const;
@@ -97,8 +100,8 @@ protected:
 	virtual void onLeftDoubleClick(QGraphicsSceneMouseEvent* /*mouseEvent*/, QGraphicsItem* clickedItem);
 
 	// reimp
-	virtual QList<QGraphicsItem*> copyPasteItems() const;
-	virtual QList<QGraphicsItem*> transformableItems() const;
+	virtual QList<QGraphicsItem*> getCopyPasteItems() const;
+	virtual QList<QGraphicsItem*> getTransformableItems() const;
 	virtual bool doUpdateCursorState(Qt::KeyboardModifiers keys, Qt::MouseButtons buttons, QGraphicsItem *hoverItem);
 	virtual QObject* createActions();
 
@@ -121,7 +124,7 @@ protected:
 	enum InternState {
 		IS_None, IS_Creating, IS_Finishing, IS_Cancelling
 	};
-	InternState m_state;
+	InternState m_state = IS_None;
 
 	CNode *m_nodesFactory = 0;
 	CEdge *m_edgesFactory = 0;

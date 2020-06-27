@@ -2,7 +2,7 @@
 This file is a part of
 QVGE - Qt Visual Graph Editor
 
-(c) 2016-2019 Ars L. Masiuk (ars.masiuk@gmail.com)
+(c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
 
 It can be used freely, maintaining the information above.
 */
@@ -54,7 +54,6 @@ public:
 protected:
 	// reimp
 	virtual void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget = Q_NULLPTR);
-	virtual void updateLabelPosition();
 
 	// callbacks 
 	virtual void onParentGeometryChanged();
@@ -70,7 +69,4 @@ private:
 
 	// visual control points
 	QList<CControlPoint*> m_controlPoints;
-
-	// label
-	QPointF m_centerPos;
 };

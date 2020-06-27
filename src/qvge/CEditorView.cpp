@@ -2,7 +2,7 @@
 This file is a part of
 QVGE - Qt Visual Graph Editor
 
-(c) 2016-2019 Ars L. Masiuk (ars.masiuk@gmail.com)
+(c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
 
 It can be used freely, maintaining the information above.
 */
@@ -11,14 +11,14 @@ It can be used freely, maintaining the information above.
 #include "CEditorScene.h"
 
 #include <QMouseEvent> 
-#include <QTimer> 
+#include <QScrollBar> 
+#include <QGuiApplication>
 #include <QDebug> 
 
 
 CEditorView::CEditorView(QWidget *parent)
 	: Super(parent),
-	m_menuModeTmp(Qt::PreventContextMenu),
-	m_currentZoom(1.0)
+	m_menuModeTmp(Qt::PreventContextMenu)
 {
     setAttribute(Qt::WA_TranslucentBackground, false);
 	setViewportUpdateMode(BoundingRectViewportUpdate);
@@ -31,6 +31,11 @@ CEditorView::CEditorView(QWidget *parent)
     setRenderHint(QPainter::Antialiasing);
 	setOptimizationFlags(DontSavePainterState);
     setOptimizationFlags(DontAdjustForAntialiasing);
+
+	setFocus();
+
+	connect(&m_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimeout()));
+	m_scrollTimer.setInterval(100);
 }
 
 
@@ -69,6 +74,9 @@ void CEditorView::zoomBy(double factor)
 
 void CEditorView::fitToView()
 {
+	m_zoomBeforeFit = m_currentZoom;
+	m_dxyBeforeFit = getCenter();
+
 	fitInView(scene()->itemsBoundingRect(), Qt::KeepAspectRatio);
 
 	m_currentZoom = matrix().m11();
@@ -82,6 +90,9 @@ void CEditorView::fitSelectedToView()
 	auto items = scene()->selectedItems();
 	if (items.isEmpty())
 		return;
+
+	m_zoomBeforeFit = m_currentZoom;
+	m_dxyBeforeFit = getCenter();
 
 	QRectF r;
 	for (const auto item : items)
@@ -97,9 +108,56 @@ void CEditorView::fitSelectedToView()
 }
 
 
+void CEditorView::zoomBack()
+{
+	zoomTo(m_zoomBeforeFit);
+	centerOn(m_dxyBeforeFit);
+}
+
+
+QPointF CEditorView::getCenter() const
+{
+	return mapToScene(viewport()->rect().center());
+}
+
+
 void CEditorView::restoreContextMenu()
 {
 	setContextMenuPolicy(m_menuModeTmp);
+}
+
+
+void CEditorView::onScrollTimeout()
+{
+	if (QGuiApplication::mouseButtons() & Qt::LeftButton)
+	{
+		auto globTopLeft = viewport()->mapToGlobal(QPoint(viewport()->x(), viewport()->y()));
+		QRect globRect = QRect(globTopLeft, viewport()->size());
+
+		if (QCursor::pos().x() > globRect.right())
+		{
+			int dx = QCursor::pos().x() - globRect.right();
+			horizontalScrollBar()->setValue(horizontalScrollBar()->value() + dx);
+		}
+		else
+			if (QCursor::pos().x() < globRect.left())
+			{
+				int dx = globRect.left() - QCursor::pos().x();
+				horizontalScrollBar()->setValue(horizontalScrollBar()->value() - dx);
+			}
+
+		if (QCursor::pos().y() > globRect.bottom())
+		{
+			int dy = QCursor::pos().y() - globRect.bottom();
+			verticalScrollBar()->setValue(verticalScrollBar()->value() + dy);
+		}
+		else
+			if (QCursor::pos().y() < globRect.top())
+			{
+				int dy = globRect.top() - QCursor::pos().y();
+				verticalScrollBar()->setValue(verticalScrollBar()->value() - dy);
+			}
+	}
 }
 
 
@@ -111,6 +169,11 @@ void CEditorView::restoreContextMenu()
 void CEditorView::mousePressEvent(QMouseEvent *e)
 {
 	Super::mousePressEvent(e);
+
+	if (e->buttons() == Qt::LeftButton)
+	{
+		m_scrollTimer.start();
+	}
 }
 
 
@@ -124,6 +187,7 @@ void CEditorView::mouseMoveEvent(QMouseEvent *e)
 			m_menuModeTmp = contextMenuPolicy();
 			setContextMenuPolicy(Qt::PreventContextMenu);
 
+			m_dragModeTmp = dragMode();
 			setDragMode(ScrollHandDrag);
 
 			m_interactiveTmp = isInteractive();
@@ -134,31 +198,43 @@ void CEditorView::mouseMoveEvent(QMouseEvent *e)
 		}
 	}
 
-	// else check LMB selection
-	//if (e->buttons() == Qt::LeftButton)
-	//{
-	//	onLeftClickMouseMove(e);
-	//}
-
 	Super::mouseMoveEvent(e);
+
+	// else check LMB selection
+	if (e->buttons() == Qt::LeftButton)
+	{
+		//auto globTopLeft = viewport()->mapToGlobal(QPoint(viewport()->x(), viewport()->y()));
+		//QRect globRect = QRect(globTopLeft, viewport()->size());
+		//if (QCursor::pos().x() > globRect.right())
+		//{
+		//	scrollContentsBy(-5, 0);
+		//	invalidateScene();
+		//	//viewport()->repaint();
+		//}
+	}
 }
 
 
 void CEditorView::mouseReleaseEvent(QMouseEvent *e)
 {
-	// disabel RMB pan
+	if (e->button() == Qt::LeftButton)
+	{
+		m_scrollTimer.stop();
+	}
+
+	// disable RMB pan
 	if (e->button() == Qt::RightButton && !e->buttons() && (dragMode() == ScrollHandDrag))
 	{
 		QMouseEvent fake(e->type(), e->pos(), Qt::LeftButton, Qt::LeftButton, e->modifiers());
 		Super::mouseReleaseEvent(&fake);
 
-		setDragMode(RubberBandDrag);
+		setDragMode(m_dragModeTmp);
 
 		setInteractive(m_interactiveTmp);
 
 		QTimer::singleShot(100, this, SLOT(restoreContextMenu()));
 	}
-	else
+	//else
 	{
 		Super::mouseReleaseEvent(e);
 	}
@@ -289,11 +365,4 @@ void CEditorView::wheelEvent(QWheelEvent *e)
 		Super::wheelEvent(e);
 	}
 }
-
-
-void CEditorView::onLeftClickMouseMove(QMouseEvent *e)
-{
-}
-
-
 
