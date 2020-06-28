@@ -1,3 +1,11 @@
+# This file is a part of
+# QVGE - Qt Visual Graph Editor
+#
+# (c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
+#
+# It can be used freely, maintaining the information above.
+
+
 # includes & libs
 INCLUDEPATH += $$PWD $$PWD/3rdParty/qtpropertybrowser $$PWD/3rdParty/qsint-widgets
 
@@ -15,7 +23,7 @@ else{
 LIBS += -lcommonui -lqvge -lqvgeio -lqtpropertybrowser -lqsint-widgets
 
 USE_OGDF{
-    LIBS += -logdf
+    LIBS += -logdf-2020
 }
 
 win32{
@@ -28,12 +36,3 @@ unix{
     }
 }
 
-
-# install
-unix{
-    isEmpty(PREFIX) {
-        PREFIX = /usr/local/bin
-    }
-
-    target.path = $$PREFIX/
-}

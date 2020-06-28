@@ -1,7 +1,7 @@
 # This file is a part of
 # QVGE - Qt Visual Graph Editor
 #
-# (c) 2016-2019 Ars L. Masiuk (ars.masiuk@gmail.com)
+# (c) 2016-2020 Ars L. Masiuk (ars.masiuk@gmail.com)
 #
 # It can be used freely, maintaining the information above.
 
@@ -13,7 +13,7 @@ include($$PWD/config.pri)
 
 USE_OGDF{
     SUBDIRS += ogdf
-    ogdf.file = $$PWD/3rdParty/ogdf/ogdf.pro
+    ogdf.file = $$PWD/3rdParty/ogdf-2020/ogdf-2020.pro
 }
 
 SUBDIRS += qtpropertybrowser

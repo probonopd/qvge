@@ -1,10 +1,29 @@
+QVGE 0.6.0
+-------------------------------------------------------------------------------
+- OGDF updated to v.2020-02 (much more stable than previous one)
+- read_proc is deprecated and replaced by QProcessInfo
+
+- (in progress) - added polyedges (#23)
+
+- fixed crash at undo recent drag
+- fixed issue when a document could not be opened (#96)
+
+Linux:
+- "qmake -r PREFIX=.." should be respected now (#69,#93)
+- fixed menu with opened windows (#88)
+- fixed "Segmentation fault" issue when loading documents (#82)
+- fixed "Buffer/Memory containment" issues (#80)
+- fixed desktop integration (#91)
+
+
+
 QVGE 0.5.5
 -------------------------------------------------------------------------------
 - support of Qt 5.13
 - support of MSVC 2017
 - support of MinGW 7
 
-- label editing can be finished with Enter as well (#77)
+- label editing can be finished with Enter; Shift+Enter starts new line (#77)
 - when exporting to image, a resolution can be customized (#73)
 - added export to GraphML format; node ports supported now (#28)
 - nodes & edges editor UI improved
