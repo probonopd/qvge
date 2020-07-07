@@ -13,7 +13,7 @@ install:
 
 script:
   - cd src
-  - qmake CONFIG+=release PREFIX=/usr
+  - qmake -r CONFIG+=release PREFIX=/usr
   - make -j$(nproc)
   - make INSTALL_ROOT=appdir -j$(nproc) install
   # find appdir/
